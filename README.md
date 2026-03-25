@@ -1,4 +1,4 @@
-![image](https://github.com/Yelllowww/Arduino_Lcd/blob/main/Glorious%20Trug.png)
+![image](https://github.com/Yelllowww/Arduino_Lcd/blob/main/circuit_scheme.png)
 ## Projeto sendo desenvolvido com:
 
 * Arduino nano (não original)
