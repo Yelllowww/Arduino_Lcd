@@ -1,20 +1,35 @@
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
-
+#include <DFRobotDFPlayerMini.h>
+#include <SoftwareSerial.h>
 
 LiquidCrystal_I2C lcd(0x27, 16, 2); 
+SoftwareSerial softserial(11,12);
+DFRobotDFPlayerMini dfplayer;
 
 String mensagem = "";
-const int pinoAmarelo = 6;
-const int pinoVermelho = 10;
+int qtd_sons = 1;
+
+const int pinoAmarelo = 4;
+const int pinoVermelho = 2;
+const int pinoPreto = 6;
 const int pinoLED = 8;
+const int pinoVolume = A0;
+
 unsigned long tempoAnterior = 0;
 unsigned long tempoBotao = 0;
+unsigned long tempoVolume = 0;
+
+int arquivoSelecionado = 1;
+bool browseStatus = false;
+bool blockBotao = false;
+
 int posicaoScroll = 0;
 int intervaloScroll = 300; 
 int delayInicial = 1000; 
 int delayFinal = 5000; 
-int caracteresporScroll = 1; 
+int caracteresporScroll = 1;
+int volumeAnterior = 0; 
 bool scrollCompleto = false;
 bool mensagemMostrada = false;
 unsigned long tempoFinal = 0;
@@ -24,13 +39,22 @@ void setup() {
   pinMode(pinoAmarelo, INPUT_PULLUP);
   pinMode(pinoVermelho, INPUT_PULLUP);
   pinMode(pinoLED, OUTPUT);
+  if (!dfplayer.begin(softserial)) {
+    Serial.println("Erro ao inicializar dfplayer");
+    while(true);
+  }
+  else {
+    Serial.println("dfplayer inicializado");
+  }
+  dfplayer.volume(15);
+  dfplayer.sleep();
   lcd.init();           
-  lcd.backlight();     
-  
+  lcd.backlight();
+
   lcd.setCursor(0, 0);
-  lcd.print("Sistema Pronto");
+  lcd.print("Hello World!");
   delay(2000);
-  lcd.clear();
+  lcd.clear(); 
   lcd.noBacklight();    
 }
 
@@ -40,29 +64,75 @@ void loop() {
   exibirMensagem();
 }
 
+void verificarBotoes() {
+  if (millis() - tempoBotao > 200) {
+    tempoBotao = millis();
+
+    int potenciometro = analogRead(pinoVolume);
+    int volume = map(potenciometro, 0, 1023, 0, 30);
+    if (volume != volumeAnterior) {
+      dfplayer.volume(volume);
+      if (!browseStatus) {
+      mensagem = "volume: " + String(volume);
+      resetarScroll();
+      }
+      volumeAnterior = volume;
+    }
+
+    if (digitalRead(pinoAmarelo) == LOW && !blockBotao) {
+      blockBotao = true;
+      arquivoSelecionado++;
+      mensagem = "SFX: " + String(arquivoSelecionado);
+      browseStatus = true;
+      resetarScroll();
+    }
+    else if (digitalRead(pinoAmarelo) == HIGH) {
+      blockBotao = false;
+    }
+
+    if (digitalRead(pinoVermelho) == LOW && !blockBotao) {
+      blockBotao = true;
+      arquivoSelecionado--;
+      mensagem = "SFX: " + String(arquivoSelecionado);
+      browseStatus = true;
+      resetarScroll();
+    }
+    else if (digitalRead(pinoVermelho) == HIGH) {
+      blockBotao = false;
+    }
+
+    if (digitalRead(pinoPreto) == LOW && !blockBotao) {
+      if (browseStatus) {
+        dfplayer.start();
+        dfplayer.play(arquivoSelecionado);
+      }
+      browseStatus = false;
+      resetarScroll();
+    }
+    else if (digitalRead(pinoPreto) == HIGH) {
+      blockBotao = false;
+    }
+
+  }
+}
+
 void verificarSerial() {
   if (Serial.available() > 0) {
     mensagem = Serial.readStringUntil('\n');
     mensagem.trim();
+
+    dfplayer.start();
+    dfplayer.play(8);
+    for (int i = 0; i < 5; i++) {
+      digitalWrite(pinoLED, HIGH);
+      delay(100);
+      digitalWrite(pinoLED, LOW);
+      delay(100);
+    }
     resetarScroll();
   }
 }
 
-void verificarBotoes() {
-  if (millis() - tempoBotao > 200) {
-    tempoBotao = millis();
-    if (digitalRead(pinoAmarelo) == LOW) {
-      mensagem = "LED ligado";
-      digitalWrite(pinoLED, HIGH);
-      resetarScroll();
-    }
-    else if (digitalRead(pinoVermelho) == LOW) {
-      mensagem = "LED desligado";
-      digitalWrite(pinoLED, LOW);
-      resetarScroll();
-    }
-  }
-}
 void exibirMensagem() {
   if (mensagem.length() == 0) return;
   int tamanhoMensagem = mensagem.length();
@@ -109,7 +179,7 @@ void exibirMensagem() {
   }
 
   
-  if (scrollCompleto && millis() - tempoFinal >= delayFinal) {
+  if (scrollCompleto && millis() - tempoFinal >= delayFinal && !browseStatus) {
     lcd.clear();
     lcd.noBacklight(); 
     mensagem = "";
