@@ -15,6 +15,7 @@ const int pinoVermelho = 2;
 const int pinoPreto = 6;
 const int pinoLED = 8;
 const int pinoVolume = A0;
+const int pinoBusy = 3;
 
 unsigned long tempoAnterior = 0;
 unsigned long tempoBotao = 0;
@@ -106,6 +107,8 @@ void verificarBotoes() {
         dfplayer.start();
         dfplayer.play(arquivoSelecionado);
       }
+      while (digitalRead(pinoBusy) == LOW) {}
+      dfplayer.sleep();
       browseStatus = false;
       resetarScroll();
     }
@@ -129,6 +132,8 @@ void verificarSerial() {
       digitalWrite(pinoLED, LOW);
       delay(100);
     }
+    while (digitalRead(pinoBusy) == LOW) {}
+    dfplayer.sleep();
     resetarScroll();
   }
 }
