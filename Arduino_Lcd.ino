@@ -37,9 +37,12 @@ unsigned long tempoFinal = 0;
 
 void setup() {
   Serial.begin(9600);
+  softserial.begin(9600);
   pinMode(pinoAmarelo, INPUT_PULLUP);
   pinMode(pinoVermelho, INPUT_PULLUP);
+  pinMode(pinoPreto, INPUT_PULLUP);
   pinMode(pinoLED, OUTPUT);
+  pinMode(pinoBusy, INPUT);
   if (!dfplayer.begin(softserial)) {
     Serial.println("Erro ao inicializar dfplayer");
     while(true);
@@ -83,6 +86,7 @@ void verificarBotoes() {
     if (digitalRead(pinoAmarelo) == LOW && !blockBotao) {
       blockBotao = true;
       arquivoSelecionado++;
+      if (arquivoSelecionado > qtd_sons) arquivoSelecionado = qtd_sons;
       mensagem = "SFX: " + String(arquivoSelecionado);
       browseStatus = true;
       resetarScroll();
@@ -94,6 +98,7 @@ void verificarBotoes() {
     if (digitalRead(pinoVermelho) == LOW && !blockBotao) {
       blockBotao = true;
       arquivoSelecionado--;
+      if (arquivoSelecionado < 1) arquivoSelecionado = 1;
       mensagem = "SFX: " + String(arquivoSelecionado);
       browseStatus = true;
       resetarScroll();
@@ -110,7 +115,6 @@ void verificarBotoes() {
       while (digitalRead(pinoBusy) == LOW) {}
       dfplayer.sleep();
       browseStatus = false;
-      resetarScroll();
     }
     else if (digitalRead(pinoPreto) == HIGH) {
       blockBotao = false;
